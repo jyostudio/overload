@@ -1,0 +1,22 @@
+{
+  "name": "@jyostudio/overload",
+  "version": "0.0.1",
+  "description": "method overload",
+  "main": "overload.js",
+  "scripts": {
+    "publish": "npm publish --access public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jyostudio/overload.git"
+  },
+  "keywords": [
+    "overload"
+  ],
+  "author": "nivk",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jyostudio/overload/issues"
+  },
+  "homepage": "https://github.com/jyostudio/overload#readme"
+}

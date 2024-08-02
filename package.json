@@ -1,10 +1,14 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "method overload",
-  "main": "overload.js",
+  "main": "dist/overload.js",
+  "unpkg": "dist/overload.js",
+  "jsdelivr": "dist/overload.js",
+  "type": "module",
   "scripts": {
-    "publish": "npm publish --access public"
+    "publish": "npm publish --access public",
+    "build": "esbuild src/overload.js --bundle --minify --sourcemap --format=esm --outfile=dist/overload.js"
   },
   "repository": {
     "type": "git",
@@ -18,5 +22,8 @@
   "bugs": {
     "url": "https://github.com/jyostudio/overload/issues"
   },
-  "homepage": "https://github.com/jyostudio/overload#readme"
+  "homepage": "https://github.com/jyostudio/overload#readme",
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  }
 }

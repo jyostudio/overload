@@ -27,7 +27,7 @@ function matchType(param, type) {
 
   if (typeof type !== "function") {
     if (
-      type === "*" ||
+      type === "*" && param !== null ||
       type === "..." ||
       (type === null && param === null) ||
       type === typeof param

@@ -28,6 +28,7 @@ function matchType(param, type) {
   if (typeof type !== "function") {
     if (
       type === "*" ||
+      type === "..." ||
       (type === null && param === null) ||
       type === typeof param
     )
@@ -137,11 +138,10 @@ export default function (defaultTypes, defaultFn) {
           ? expectedType.map(getTypeName).join("、")
           : getTypeName(expectedType);
 
-        errorMessage += `${hasError ? "\n" : ""}Argument ${
-          i + 1
-        }: Cannot convert from "${getTypeName(
-          args[i]
-        )}" to "${expectedTypeNames}".`;
+        errorMessage += `${hasError ? "\n" : ""}Argument ${i + 1
+          }: Cannot convert from "${getTypeName(
+            args[i]
+          )}" to "${expectedTypeNames}".`;
         hasError = true;
       }
     });
@@ -162,14 +162,16 @@ export default function (defaultTypes, defaultFn) {
     if (!TABLE.size) return runAny.apply(this, params);
 
     const SAME_LENGTH_MATCH = Array.from(TABLE.keys()).filter(
-      (v) => v.length === params.length
+      (v) => {
+        return v.length === params.length || v[v.length - 1] === "...";
+      }
     );
 
     loop: for (let i = 0; i < SAME_LENGTH_MATCH.length; i++) {
       const types = SAME_LENGTH_MATCH[i];
 
-      for (let j = 0; j < types.length; j++) {
-        if (!matchType(params[j], types[j])) continue loop;
+      for (let j = 0; j < params.length; j++) {
+        if (!matchType(params[j], types[j] || types[types.length - 1])) continue loop;
       }
 
       return TABLE.get(types).apply(this, params);
@@ -192,12 +194,18 @@ export default function (defaultTypes, defaultFn) {
     if (typeof fn !== "function")
       throw new TypeError(`"fn" must be a function.`);
 
+    for (let i = 0; i < types.length; i++) {
+      if (types[i] === "..." && i !== types.length - 1) {
+        throw new Error(`A "..." parameter must be the last parameter in a formal parameter list.`);
+      }
+    }
+
     TABLE.size &&
       Array.from(TABLE.keys()).forEach((key) => {
         if (key.length !== types.length) return;
 
         for (let i = 0; i < key.length; i++) {
-          if (key[i] !== types[i] && key[i] !== "*") return;
+          if (key[i] !== types[i]) return;
         }
 
         throw new Error(`Function with the same signature already exists.`);
@@ -205,8 +213,8 @@ export default function (defaultTypes, defaultFn) {
 
     types.forEach((type) => {
       const isArray = Array.isArray(type);
-      if (typeof type !== "function" && !isArray && "*" !== type) {
-        throw new Error("The expected type must be Class, Array or *.");
+      if (typeof type !== "function" && !isArray && type !== "*" && type !== "...") {
+        throw new Error(`The expected type must be Class, Array, "*" or the last parameter type can also be "...".`);
       }
 
       if (isArray) {
@@ -217,7 +225,7 @@ export default function (defaultTypes, defaultFn) {
             type[i] !== "*"
           ) {
             throw new Error(
-              "The predetermined type enumeration content must be a Class, null or *."
+              `The predetermined type enumeration content must be a Class, null or "*".`
             );
           }
         }

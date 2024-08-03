@@ -1,11 +1,12 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "method overload",
   "main": "dist/overload.js",
   "unpkg": "dist/overload.js",
   "jsdelivr": "dist/overload.js",
   "type": "module",
+  "types": "types/overload.d.ts",
   "scripts": {
     "publish": "npm publish --access public",
     "build": "esbuild src/overload.js --bundle --minify --sourcemap --format=esm --outfile=dist/overload.js"

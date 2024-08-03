@@ -172,6 +172,10 @@ export default function (defaultTypes, defaultFn) {
     loop: for (let i = 0; i < SAME_LENGTH_MATCH.length; i++) {
       const types = SAME_LENGTH_MATCH[i];
 
+      if (typeof types[0] !== "undefined" && types[0] !== "..." && params.length === 0) {
+        continue loop;
+      }
+
       for (let j = 0; j < params.length; j++) {
         if (!matchType(params[j], types[j] || types[types.length - 1])) continue loop;
       }

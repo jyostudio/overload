@@ -1,6 +1,6 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "description": "method overload",
   "main": "dist/overload.js",
   "unpkg": "dist/overload.js",

@@ -12,6 +12,16 @@ const TYPE_NAMES = new Map([
 ]);
 
 /**
+ * 内部类型父级标志
+ */
+const INNER_TYPE_FATHER = "##INNER_TYPE##";
+
+/**
+ * 内部类型子级标志
+ */
+const INNER_TYPE_SON = "@@INNER_TYPE@@";
+
+/**
  * 匹配类型
  * @param {any} param - 传入的参数
  * @param {any} type - 期望的类型
@@ -45,6 +55,10 @@ function matchType(param, type) {
       break;
   }
 
+  if (param?.[INNER_TYPE_SON]) {
+    return param[INNER_TYPE_SON] === type?.[INNER_TYPE_FATHER];
+  }
+
   if (param instanceof type || param === type) return true;
 
   return false;
@@ -64,7 +78,13 @@ function getTypeName(param) {
 
   if (paramType in TYPE_NAMES) return TYPE_NAMES.get(paramType);
 
-  const className = param.name || param.constructor.name;
+  let className = (param.name || param.constructor.name || "(unknown)").split(" ").pop();
+
+  [INNER_TYPE_FATHER, INNER_TYPE_SON].forEach(v => {
+    if (param?.[v]) {
+      className += `<${getTypeName(param?.[v])}>`;
+    }
+  });
 
   if (paramType === "function" && className === "anonymous")
     return "(anonymous)";

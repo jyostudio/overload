@@ -232,10 +232,8 @@ class A {
 }
 ```
 
-## TODO
-
-1、数组类型唯一  
-2、不定参数类型唯一
+集合类型唯一  
+详情请看[这里](https://www.npmjs.com/package/@jyostudio/list)
 
 ## 许可证
 

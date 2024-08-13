@@ -2,7 +2,7 @@
  * 重载函数
  * @param {Array<any>} [params] - 参数列表
  */
-interface overload extends Function{
+interface overload extends Function {
   /**
    * 添加函数重载
    * @param {Array} types - 参数类型列表

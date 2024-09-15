@@ -241,8 +241,10 @@ function createOverload() {
 
       if (isArray) {
         for (let i = 0; i < type.length; i++) {
+          const typeofStr = typeof type[i];
           if (
-            typeof type[i] !== FN_STR &&
+            typeofStr !== FN_STR &&
+            !(typeofStr === OBJECT_STR && typeof type[i]?.constructor === FN_STR) &&
             type[i] !== null &&
             type[i] !== ANY_STR
           ) {

@@ -11,7 +11,6 @@ const TYPE_NAMES = {
   undefined: "(undefined)",
 };
 
-const UNDEFINED_STR = "undefined";
 const OBJECT_STR = "object";
 const FN_STR = "function";
 const ANY_STR = "*";
@@ -54,15 +53,18 @@ function matchType(param, type) {
   }
 
   switch (typeof param) {
-    case [FN_STR]:
-    case [OBJECT_STR]:
+    case FN_STR:
+    case OBJECT_STR:
       break;
-    default:
-      param = Object(param);
-      break;
+    case "string": param = String; break;
+    case "number": param = Number; break;
+    case "boolean": param = Boolean; break;
+    case "symbol": param = Symbol; break;
+    case "bigint": param = BigInt; break;
+    default: param = Object(param); break;
   }
 
-  if (param instanceof type || param === type) return true;
+  if (param === type || param instanceof type) return true;
 
   if (param?.[INNER_TYPE_SON]) {
     return param[INNER_TYPE_SON] === type?.[INNER_TYPE_FATHER];
@@ -166,6 +168,7 @@ function throwStackInfo(err, types, args) {
 function createOverload() {
   const TYPES = [];
   const FNS = [];
+  const OPTIONS = [];
   let anyFn = null;
 
   /**
@@ -187,14 +190,18 @@ function createOverload() {
   function overload(...params) {
     if (!TYPES.length) return runAny.apply(this, params);
 
+    const paramsLength = params.length;
+
     loop: for (let i = 0; i < TYPES.length; i++) {
       const types = TYPES[i];
+      const options = OPTIONS[i];
+      const typesLength = types.length;
 
-      if ((types.length !== params.length && types[types.length - 1] !== REST_STR) ||
-        (params.length === 0 && typeof types[0] !== UNDEFINED_STR && types[0] !== REST_STR)) continue;
+      if ((options.length !== paramsLength && !options.rest) ||
+        (paramsLength === 0 && typesLength && types[0] !== REST_STR)) continue;
 
-      for (let j = 0; j < params.length; j++) {
-        if (!matchType(params[j], types[j] || types[types.length - 1])) continue loop;
+      for (let j = 0; j < paramsLength; j++) {
+        if (!matchType(params[j], types[j] || types[typesLength - 1])) continue loop;
       }
 
       return FNS[i].apply(this, params);
@@ -258,6 +265,10 @@ function createOverload() {
 
     TYPES.push(types);
     FNS.push(fn);
+    OPTIONS.push({
+      length: types.length,
+      rest: types[types.length - 1] === REST_STR,
+    });
 
     return overload;
   };

@@ -1,0 +1,31 @@
+{
+    "exclude": [
+      "node_modules",
+      "dist",
+      "build",
+      "public",
+      "test",
+      "tests",
+      "tmp",
+      "vendor"
+    ],
+    "include": [
+      "src/**/*.d.ts",
+    ],
+    "compilerOptions": {
+      "target": "ESNext",
+      "module": "ESNext",
+      "moduleResolution": "Bundler",
+      "allowImportingTsExtensions": true,
+      "customConditions": ["module"],
+      "allowArbitraryExtensions": true,
+      "noEmit": true,
+      "allowJs": true,
+      "checkJs": false,
+      "verbatimModuleSyntax": true,
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": true,
+      "strict": true,
+      "skipLibCheck": true
+    }
+  }

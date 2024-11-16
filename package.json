@@ -1,17 +1,18 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.0.12",
+  "version": "0.1.0",
   "description": "method overload",
-  "source": "src/overload.js",
-  "main": "src/overload.js",
-  "unpkg": "dist/overload.js",
-  "jsdelivr": "dist/overload.js",
+  "source": "src/index.js",
+  "main": "src/index.js",
+  "unpkg": "dist/index.js",
+  "jsdelivr": "dist/index.js",
   "type": "module",
-  "types": "types/overload.d.ts",
-  "typings": "types/overload.d.ts",
+  "types": "src/index.d.ts",
+  "typings": "src/index.d.ts",
   "scripts": {
     "publish": "npm publish --access public",
-    "build": "esbuild src/overload.js --bundle --minify --sourcemap --format=esm --outfile=dist/overload.js"
+    "build": "esbuild src/index.js --bundle --minify --sourcemap --format=esm --outfile=dist/index.js",
+    "doc": "typedoc --options typedoc.json"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,8 @@
   },
   "homepage": "https://github.com/jyostudio/overload#readme",
   "devDependencies": {
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.23.1",
+    "typedoc": "^0.26.11",
+    "typedoc-github-theme": "^0.1.2"
   }
 }

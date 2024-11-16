@@ -9,7 +9,7 @@
 ```HTML
 <script type="importmap">
   {
-    imports: {
+    "imports": {
       "@jyostudio/overload": "https://unpkg.com/@jyostudio/overload"
     }
   }
@@ -188,7 +188,7 @@ fn("abc", "bcd", 1, 2); // "abc", [ "bcd", 1, 2 ]
 // SyntaxError: Rest parameter must be last formal parameter
 const errFn = overload().add([String, "...", "*"], function (str, ...params, any) {});
 
-// Error: A "..." parameter must be the last parameter in a formal parameter list.
+// SyntaxError: A "..." parameter must be the last parameter in a formal parameter list.
 const errFn1 = overload().add([String, "...", "*"], function (str, params, any) {});
 ```
 

@@ -1,21 +1,5 @@
-/**
- * 类型名称映射表
- * @type {Map<String, String>}
- */
-const TYPE_NAMES = {
-  number: "Number",
-  string: "String",
-  boolean: "Boolean",
-  symbol: "Symbol",
-  bigint: "BigInt",
-  undefined: "(undefined)",
-};
-
-const OBJECT_STR = "object";
-const FN_STR = "function";
 const ANY_STR = "*";
 const REST_STR = "...";
-
 
 /**
  * 内部类型父级标志
@@ -36,25 +20,28 @@ const INNER_TYPE_SON = "@@INNER_TYPE@@";
 function matchType(param, type) {
   if (Array.isArray(type)) {
     for (let i = 0; i < type.length; i++) {
-      if (matchType(param, type[i])) return true;
+      if (matchType(param, type[i])) {
+        return true;
+      }
     }
     return false;
   }
 
-  if (typeof type !== FN_STR) {
+  if (typeof type !== "function") {
     if (
       type === ANY_STR && param !== null ||
       type === REST_STR ||
       (type === null && param === null) ||
       type === typeof param
-    )
+    ) {
       return true;
+    }
     return false;
   }
 
   switch (typeof param) {
-    case FN_STR:
-    case OBJECT_STR:
+    case "function":
+    case "object":
       break;
     case "string": param = String; break;
     case "number": param = Number; break;
@@ -64,7 +51,9 @@ function matchType(param, type) {
     default: param = Object(param); break;
   }
 
-  if (param === type || param instanceof type) return true;
+  if (param === type || param instanceof type) {
+    return true;
+  }
 
   if (param?.[INNER_TYPE_SON]) {
     return param[INNER_TYPE_SON] === type?.[INNER_TYPE_FATHER];
@@ -79,15 +68,21 @@ function matchType(param, type) {
  * @returns {String} 类型名称
  */
 function getTypeName(param) {
-  if (param === null) return "null";
+  if (param === null) {
+    return "null";
+  }
 
-  if (param === ANY_STR) return "(any)";
+  if (param === ANY_STR) {
+    return "(任意)";
+  }
 
   const paramType = typeof param;
 
-  if (paramType in TYPE_NAMES) return TYPE_NAMES[paramType];
+  if (!["function", "object"].includes(paramType)) {
+    return paramType[0].toUpperCase() + paramType.slice(1);;
+  }
 
-  let className = (param.name || param.constructor.name || "(unknown)").split(" ").pop();
+  let className = (param?.name || param?.constructor?.name || "(未知)").split(" ").pop();
 
   [INNER_TYPE_FATHER, INNER_TYPE_SON].forEach(v => {
     if (param?.[v]) {
@@ -95,8 +90,9 @@ function getTypeName(param) {
     }
   });
 
-  if (paramType === FN_STR && className === "anonymous")
-    return "(anonymous)";
+  if (paramType === "function" && className === "anonymous") {
+    return "(匿名)";
+  }
 
   return className;
 }
@@ -115,7 +111,7 @@ function throwStackInfo(err, types, args) {
 
   stackList.forEach((stackLine, index, arr) => {
     const parts = stackLine.trim().split(" ");
-    const fullMethodName = parts.length === 3 ? parts[1] : "(anonymous)";
+    const fullMethodName = parts.length === 3 ? parts[1] : `(匿名)`;
     const methodName = fullMethodName.split(".").pop();
 
     arr[index] = {
@@ -134,7 +130,7 @@ function throwStackInfo(err, types, args) {
   const matchingTypes = types.find(v => v.length === args.length);
 
   if (!matchingTypes) {
-    errorMessage += `The function "${errorMethodName}" does not have an overload that takes ${args.length} arguments.`;
+    errorMessage += `方法 ${errorMethodName} 不存在 ${args.length} 个参数的重载。`;
     errorMessage += formattedStack;
     throw new Error(errorMessage);
   }
@@ -146,16 +142,14 @@ function throwStackInfo(err, types, args) {
         ? expectedType.map(getTypeName).join("、")
         : getTypeName(expectedType);
 
-      errorMessage += `${hasError ? "\n" : ""}Argument ${i + 1
-        }: Cannot convert from "${getTypeName(
-          args[i]
-        )}" to "${expectedTypeNames}".`;
+      errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
+
       hasError = true;
     }
   });
 
   if (hasError) {
-    errorMessage = `Error calling function "${errorMethodName}"\n${errorMessage}`;
+    errorMessage = `方法 ${errorMethodName} 调用错误\n${errorMessage}`;
     errorMessage += formattedStack;
     throw new Error(errorMessage);
   }
@@ -177,7 +171,9 @@ function createOverload() {
    * @returns {any} 返回值
    */
   function runAny(...args) {
-    if (anyFn) return anyFn.apply(this, args);
+    if (anyFn) {
+      return anyFn.apply(this, args);
+    }
 
     throwStackInfo(new Error(), TYPES, args);
   }
@@ -188,7 +184,9 @@ function createOverload() {
    * @returns {any} 返回值
    */
   function overload(...params) {
-    if (!TYPES.length) return runAny.apply(this, params);
+    if (!TYPES.length) {
+      return runAny.apply(this, params);
+    }
 
     const paramsLength = params.length;
 
@@ -198,10 +196,14 @@ function createOverload() {
       const typesLength = types.length;
 
       if ((options.length !== paramsLength && !options.rest) ||
-        (paramsLength === 0 && typesLength && types[0] !== REST_STR)) continue;
+        (paramsLength === 0 && typesLength && types[0] !== REST_STR)) {
+        continue;
+      }
 
       for (let j = 0; j < paramsLength; j++) {
-        if (!matchType(params[j], types[j] || types[typesLength - 1])) continue loop;
+        if (!matchType(params[j], types[j] || types[typesLength - 1])) {
+          continue loop;
+        }
       }
 
       return FNS[i].apply(this, params);
@@ -219,45 +221,48 @@ function createOverload() {
    * @throws {Error}
    */
   overload.add = function (types, fn) {
-    if (!Array.isArray(TYPES)) throw new TypeError(`"types" must be an array.`);
+    if (!Array.isArray(TYPES)) {
+      throw new TypeError("types 必须是数组。");
+    }
 
-    if (typeof fn !== FN_STR)
-      throw new TypeError(`"fn" must be a function.`);
+    if (typeof fn !== "function") {
+      throw new TypeError("fn 必须是函数。");
+    }
 
     for (let i = 0; i < types.length; i++) {
       if (types[i] === REST_STR && i !== types.length - 1) {
-        throw new Error(`A "..." parameter must be the last parameter in a formal parameter list.`);
+        throw new SyntaxError(`${REST_STR} 必须是最后一个参数。`);
       }
     }
 
     TYPES.forEach((key) => {
-      if (key.length !== types.length) return;
+      if (key.length !== types.length) {
+        return;
+      }
 
       for (let i = 0; i < key.length; i++) {
         if (key[i] !== types[i]) return;
       }
 
-      throw new Error(`Function with the same signature already exists.`);
+      throw new Error("已存在此签名的重载。");
     });
 
     TYPES.forEach(type => {
       const isArray = Array.isArray(type);
-      if (typeof type !== FN_STR && !isArray && type !== ANY_STR && type !== REST_STR) {
-        throw new Error(`The expected type must be Class, Array, "*" or the last parameter type can also be "...".`);
+      if (typeof type !== "function" && !isArray && type !== ANY_STR && type !== REST_STR) {
+        throw new TypeError(`期望类型为 Class、Array、${ANY_STR} 或末尾参数也可以是 ${REST_STR}。`);
       }
 
       if (isArray) {
         for (let i = 0; i < type.length; i++) {
           const typeofStr = typeof type[i];
           if (
-            typeofStr !== FN_STR &&
-            !(typeofStr === OBJECT_STR && typeof type[i]?.constructor === FN_STR) &&
+            typeofStr !== "function" &&
+            !(typeofStr === "object" && typeof type[i]?.constructor === "function") &&
             type[i] !== null &&
             type[i] !== ANY_STR
           ) {
-            throw new Error(
-              `The predetermined type enumeration content must be a Class, null or "*".`
-            );
+            throw new TypeError(`类型必须为 Class、null 或 ${ANY_STR}。`);
           }
         }
       }
@@ -281,10 +286,13 @@ function createOverload() {
    * @throws {Error}
    */
   overload.any = function (fn) {
-    if (typeof fn !== FN_STR)
-      throw new TypeError(`"fn" must be a function.`);
+    if (anyFn) {
+      throw new Error("any 函数已存在。");
+    }
 
-    if (anyFn) throw new Error(`"any" function is already defined.`);
+    if (typeof fn !== "function") {
+      throw new TypeError("fn 必须是函数。");
+    }
 
     anyFn = fn;
 

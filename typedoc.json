@@ -1,0 +1,12 @@
+{
+    "plugin": [
+        "typedoc-github-theme"
+    ],
+    "entryPoints": [
+        "./src/index.d.ts"
+    ],
+    "out": "./docs",
+    "lang": "zh",
+    "hideGenerator": true,
+    "disableSources": true
+}

@@ -201,7 +201,15 @@ function createOverload() {
       }
 
       for (let j = 0; j < paramsLength; j++) {
-        if (!matchType(params[j], types[j] || types[typesLength - 1])) {
+        const type = types[j] || types[typesLength - 1];
+        if (!matchType(params[j], type)) {
+          try {
+            const convert = type?.["⇄"]?.(params[j]);
+            params[j] = convert;
+            if (matchType(params[j], type)) {
+              continue;
+            }
+          } catch { }
           continue loop;
         }
       }

@@ -232,6 +232,62 @@ class A {
 }
 ```
 
+自动调用类型转换函数
+
+```javascript
+import overload from "@jyostudio/overload";
+
+class A {}
+class B {}
+const fn = overload([A], function (a) {});
+/**
+ * 在正常情况下，应当抛出：
+ * Argument 1: Cannot convert from "B" to "A".
+ */
+fn(new B());
+```
+
+```javascript
+import overload from "@jyostudio/overload";
+
+class A {
+    constructor(bbb) {
+        this.bbb = bbb;
+    }
+
+    // 定义一个静态的类型转换函数
+    static ["⇄"](...params) {
+        // 指定类型 B 的对象为入参
+        A["⇄"] = overload([B], function (b) {
+            /**
+             * 返回 A 的实例对象
+             * 注意，返回其他类型都将继续触发错误：
+             * Argument 1: Cannot convert from "B" to "A".
+             */
+            return new A(b.aaa);
+        });
+
+        return A["⇄"].apply(this, params);
+    }
+}
+
+class B {
+    aaa = 123;
+}
+
+const fn = overload([A], function (a) {
+    console.dir(a);
+    console.dir(a.bbb);
+});
+
+/**
+ * 输出：
+ * 1、类型为 A 的实例对象
+ * 2、123
+ */
+fn(new B());
+```
+
 集合类型唯一  
 详情请看[这里](https://www.npmjs.com/package/@jyostudio/list)
 

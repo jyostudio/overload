@@ -205,8 +205,8 @@ function createOverload() {
         if (!matchType(params[j], type)) {
           try {
             const convert = type?.["⇄"]?.(params[j]);
-            params[j] = convert;
-            if (matchType(params[j], type)) {
+            if (matchType(convert, type)) {
+              params[j] = convert;
               continue;
             }
           } catch { }

@@ -1,15 +1,4 @@
-const ANY_STR = "*";
-const REST_STR = "...";
-
-/**
- * 内部类型父级标志
- */
-const INNER_TYPE_FATHER = "##INNER_TYPE##";
-
-/**
- * 内部类型子级标志
- */
-const INNER_TYPE_SON = "@@INNER_TYPE@@";
+import { ANY_STR, REST_STR, TYPE_CONVERT_STR, INNER_TYPE_FATHER, INNER_TYPE_SON, INNER_TYPE_FN, INNER_THROW_FN } from "./constant.js";
 
 /**
  * 匹配类型
@@ -57,6 +46,10 @@ function matchType(param, type) {
 
   if (param?.[INNER_TYPE_SON]) {
     return param[INNER_TYPE_SON] === type?.[INNER_TYPE_FATHER];
+  }
+
+  if (type[INNER_TYPE_FN]?.(param)) {
+    return true;
   }
 
   return false;
@@ -142,7 +135,11 @@ function throwStackInfo(err, types, args) {
         ? expectedType.map(getTypeName).join("、")
         : getTypeName(expectedType);
 
-      errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
+      if (expectedType[INNER_THROW_FN]) {
+        errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：${expectedType[INNER_THROW_FN]?.(args[i])}。`;
+      } else {
+        errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
+      }
 
       hasError = true;
     }
@@ -204,7 +201,7 @@ function createOverload() {
         const type = types[j] || types[typesLength - 1];
         if (!matchType(params[j], type)) {
           try {
-            const convert = type?.["⇄"]?.(params[j]);
+            const convert = type?.[TYPE_CONVERT_STR]?.(params[j]);
             if (matchType(convert, type)) {
               params[j] = convert;
               continue;

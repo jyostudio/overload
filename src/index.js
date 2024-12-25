@@ -16,6 +16,10 @@ function matchType(param, type) {
     return false;
   }
 
+  if (type?.[INNER_TYPE_FN]?.(param)) {
+    return true;
+  }
+
   if (typeof type !== "function") {
     if (
       type === ANY_STR && param !== null ||
@@ -46,10 +50,6 @@ function matchType(param, type) {
 
   if (param?.[INNER_TYPE_SON]) {
     return param[INNER_TYPE_SON] === type?.[INNER_TYPE_FATHER];
-  }
-
-  if (type[INNER_TYPE_FN]?.(param)) {
-    return true;
   }
 
   return false;
@@ -135,10 +135,16 @@ function throwStackInfo(err, types, args) {
         ? expectedType.map(getTypeName).join("、")
         : getTypeName(expectedType);
 
-      if (expectedType[INNER_THROW_FN]) {
-        errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：${expectedType[INNER_THROW_FN]?.(args[i])}。`;
-      } else {
-        errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
+      errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
+
+      if (Array.isArray(expectedType)) {
+        expectedType.forEach((type, index) => {
+          if (typeof type?.[INNER_THROW_FN] === "function") {
+            errorMessage += `${index === 0 ? "\n附加信息：\n" : ""}尝试方案${i + 1} - ${type[INNER_THROW_FN]?.(args[i])}`;
+          }
+        });
+      } else if (typeof expectedType?.[INNER_THROW_FN] === "function") {
+        errorMessage += `\n附加信息：\n尝试方案${i + 1} - ${expectedType[INNER_THROW_FN]?.(args[i])}`;
       }
 
       hasError = true;

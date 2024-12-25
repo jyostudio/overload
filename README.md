@@ -251,33 +251,33 @@ fn(new B());
 import overload from "@jyostudio/overload";
 
 class A {
-    constructor(bbb) {
-        this.bbb = bbb;
-    }
+  constructor(bbb) {
+    this.bbb = bbb;
+  }
 
-    // 定义一个静态的类型转换函数
-    static ["⇄"](...params) {
-        // 指定类型 B 的对象为入参
-        A["⇄"] = overload([B], function (b) {
-            /**
-             * 返回 A 的实例对象
-             * 注意，返回其他类型都将继续触发错误：
-             * Argument 1: Cannot convert from "B" to "A".
-             */
-            return new A(b.aaa);
-        });
+  // 定义一个静态的类型转换函数
+  static ["⇄"](...params) {
+    // 指定类型 B 的对象为入参
+    A["⇄"] = overload([B], function (b) {
+      /**
+       * 返回 A 的实例对象
+       * 注意，返回其他类型都将继续触发错误：
+       * Argument 1: Cannot convert from "B" to "A".
+       */
+      return new A(b.aaa);
+    });
 
-        return A["⇄"].apply(this, params);
-    }
+    return A["⇄"].apply(this, params);
+  }
 }
 
 class B {
-    aaa = 123;
+  aaa = 123;
 }
 
 const fn = overload([A], function (a) {
-    console.dir(a);
-    console.dir(a.bbb);
+  console.dir(a);
+  console.dir(a.bbb);
 });
 
 /**
@@ -288,14 +288,105 @@ const fn = overload([A], function (a) {
 fn(new B());
 ```
 
+JSON Schema 支持（使用 ajv）
+
+```javascript
+import overload from "@jyostudio/overload";
+import JSONSchema from "@jyostudio/overload/dist/jsonSchema.js";
+
+const schema = new JSONSchema({
+  type: "object",
+  properties: {
+    foo: { type: "integer" },
+    bar: { type: "string" },
+  },
+  required: ["foo"],
+  additionalProperties: false,
+});
+
+const fn = overload()
+  .add([schema], function (obj) {
+    console.log("验证通过了！");
+  });
+  /*
+  // 如果增加了这段代码，则不会报错而是走到此分支逻辑
+  .add([Object], function (obj) {
+    console.log("Schema 没验证成功，但可以继续走到 Object 分支来。");
+  });
+  */
+
+// 验证通过了！
+fn({
+  foo: 1,
+  bar: "abc",
+});
+
+/**
+Uncaught Error: 方法 (匿名) 调用错误
+参数1：预期 JSONSchema 但得到 Object。
+附加信息：
+尝试方案1 - JSON Schema 校验错误：
+[
+  {
+    "instancePath": "/foo",
+    "schemaPath": "#/properties/foo/type",
+    "keyword": "type",
+    "params": {
+      "type": "integer"
+    },
+    "message": "应当是 integer 类型"
+  },
+  {
+    "instancePath": "/bar",
+    "schemaPath": "#/properties/bar/type",
+    "keyword": "type",
+    "params": {
+      "type": "string"
+    },
+    "message": "应当是 string 类型"
+  }
+] 
+*/
+fn({
+  foo: "abcdef",
+  bar: true,
+});
+```
+
 集合类型唯一  
 详情请看[这里](https://www.npmjs.com/package/@jyostudio/list)
 
 ## 许可证
 
+### 本仓库
+
 MIT License
 
 Copyright (c) 2024 nivk
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### ajv
+
+The MIT License (MIT)
+
+Copyright (c) 2015-2021 Evgeny Poberezkin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

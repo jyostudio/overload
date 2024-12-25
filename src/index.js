@@ -1,15 +1,4 @@
-const ANY_STR = "*";
-const REST_STR = "...";
-
-/**
- * 内部类型父级标志
- */
-const INNER_TYPE_FATHER = "##INNER_TYPE##";
-
-/**
- * 内部类型子级标志
- */
-const INNER_TYPE_SON = "@@INNER_TYPE@@";
+import { ANY_STR, REST_STR, TYPE_CONVERT_STR, INNER_TYPE_FATHER, INNER_TYPE_SON, INNER_TYPE_FN, INNER_THROW_FN } from "./constant.js";
 
 /**
  * 匹配类型
@@ -25,6 +14,10 @@ function matchType(param, type) {
       }
     }
     return false;
+  }
+
+  if (type?.[INNER_TYPE_FN]?.(param)) {
+    return true;
   }
 
   if (typeof type !== "function") {
@@ -144,6 +137,16 @@ function throwStackInfo(err, types, args) {
 
       errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
 
+      if (Array.isArray(expectedType)) {
+        expectedType.forEach((type, index) => {
+          if (typeof type?.[INNER_THROW_FN] === "function") {
+            errorMessage += `${index === 0 ? "\n附加信息：\n" : ""}尝试方案${i + 1} - ${type[INNER_THROW_FN]?.(args[i])}`;
+          }
+        });
+      } else if (typeof expectedType?.[INNER_THROW_FN] === "function") {
+        errorMessage += `\n附加信息：\n尝试方案${i + 1} - ${expectedType[INNER_THROW_FN]?.(args[i])}`;
+      }
+
       hasError = true;
     }
   });
@@ -204,7 +207,7 @@ function createOverload() {
         const type = types[j] || types[typesLength - 1];
         if (!matchType(params[j], type)) {
           try {
-            const convert = type?.["⇄"]?.(params[j]);
+            const convert = type?.[TYPE_CONVERT_STR]?.(params[j]);
             if (matchType(convert, type)) {
               params[j] = convert;
               continue;

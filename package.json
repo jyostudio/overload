@@ -1,6 +1,6 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "method overload",
   "source": "src/index.js",
   "main": "src/index.js",
@@ -32,7 +32,7 @@
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-i18n": "^4.2.0",
-    "esbuild": "^0.23.1",
+    "esbuild": "^0.25.8",
     "typedoc": "^0.26.11",
     "typedoc-github-theme": "^0.1.2"
   }

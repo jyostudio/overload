@@ -1,6 +1,6 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "description": "method overload",
   "source": "src/index.js",
   "main": "src/index.js",
@@ -11,9 +11,10 @@
   "typings": "src/index.d.ts",
   "scripts": {
     "publish": "npm publish --access public",
-    "build": "npm run build:core && npm run build:jsonSchema && npm run copy:all:dts",
+    "build": "npm run build:core && npm run build:jsonSchema && npm run build:decorator && npm run copy:all:dts",
     "build:core": "esbuild src/index.js --bundle --minify --sourcemap --format=esm --outfile=dist/index.js",
     "build:jsonSchema": "esbuild src/jsonSchema.js --bundle --minify --sourcemap --format=esm --outfile=dist/jsonSchema.js",
+    "build:decorator": "esbuild src/decorator.js --bundle --minify --sourcemap --format=esm --outfile=dist/decorator.js",
     "copy:all:dts": "cp src/*.d.ts dist/",
     "doc": "typedoc --options typedoc.json"
   },

@@ -4,7 +4,8 @@
     ],
     "entryPoints": [
         "./src/index.d.ts",
-        "./src/jsonSchema.d.ts"
+        "./src/jsonSchema.d.ts",
+        "./src/decorator.d.ts"
     ],
     "out": "./docs",
     "lang": "zh",

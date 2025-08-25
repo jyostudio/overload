@@ -2,22 +2,10 @@
   "name": "@jyostudio/overload",
   "version": "0.1.8",
   "description": "method overload",
-  "source": "src/index.js",
-  "main": "src/index.js",
-  "unpkg": "dist/index.js",
-  "jsdelivr": "dist/index.js",
+  "main": "dist/index.js",
   "type": "module",
-  "types": "src/index.d.ts",
-  "typings": "src/index.d.ts",
-  "scripts": {
-    "publish": "npm publish --access public",
-    "build": "npm run build:core && npm run build:jsonSchema && npm run build:decorator && npm run copy:all:dts",
-    "build:core": "esbuild src/index.js --bundle --minify --sourcemap --format=esm --outfile=dist/index.js",
-    "build:jsonSchema": "esbuild src/jsonSchema.js --bundle --minify --sourcemap --format=esm --outfile=dist/jsonSchema.js",
-    "build:decorator": "esbuild src/decorator.js --bundle --minify --sourcemap --format=esm --outfile=dist/decorator.js",
-    "copy:all:dts": "cp src/*.d.ts dist/",
-    "doc": "typedoc --options typedoc.json"
-  },
+  "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jyostudio/overload.git"
@@ -31,11 +19,6 @@
     "url": "https://github.com/jyostudio/overload/issues"
   },
   "homepage": "https://github.com/jyostudio/overload#readme",
-  "devDependencies": {
-    "ajv": "^8.17.1",
-    "ajv-i18n": "^4.2.0",
-    "esbuild": "^0.25.8",
-    "typedoc": "^0.26.11",
-    "typedoc-github-theme": "^0.1.2"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }

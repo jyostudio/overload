@@ -1,37 +1,23 @@
 # @jyostudio/overload
 
-使 JavaScript 函数拥有一定的重载能力。
+专为鸿蒙适配
+
+简化 TypeScript 函数重载方式，并使运行时拥有类型检查能力。
 
 ## 引用
 
-浏览器
-
-```HTML
-<script type="importmap">
-  {
-    "imports": {
-      "@jyostudio/overload": "https://unpkg.com/@jyostudio/overload"
-    }
-  }
-</script>
-```
-
-Node.js
-
 ```bash
-npm install @jyostudio/overload
+ohpm install @jyostudio/overload
 ```
-
-根据环境引用后，用法完全一致，不需要在使用时区分引用地址和方式。
 
 ## 用法
 
 下列代码演示了只允许空参数调用的函数。
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
-const fn = overload([], function () {
+const fn = overload([], () => {
   console.log("只允许空参数调用。");
 });
 
@@ -43,20 +29,20 @@ fn(123);
 
 下面代码演示了如何搭配参数数量和类型进行调用。
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
 const fn = overload()
-  .add([], function () {
+  .add([], () => {
     console.log("空参数调用");
   })
-  .add([String], function (str) {
+  .add([String], (str: string) => {
     console.log("字符串调用");
   })
-  .add([Number], function (num) {
+  .add([Number], (num: number) => {
     console.log("数字调用");
   })
-  .add([String, Number], function () {
+  .add([String, Number], (str: string, num: number) => {
     console.log("字符串 + 数字调用");
   });
 
@@ -80,14 +66,14 @@ fn("abc", 123, true);
 
 当我们想有一个兜底函数时，可以这样做
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
 const fn = overload()
-  .add([], function () {
+  .add([], () => {
     console.log("空参数调用");
   })
-  .any(function (...params) {
+  .any((...params: ESObject[]) => {
     console.log(params.length);
   });
 
@@ -97,20 +83,20 @@ fn(123, "abc"); // 2
 
 如果我们有自定义类型
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
 class A {}
 class B {}
 
 const fn = overload()
-  .add([A], function (a) {
+  .add([A], (a: A) => {
     console.log("用 A 调用");
   })
-  .add([B], function (b) {
+  .add([B], (b: B) => {
     console.log("用 B 调用");
   })
-  .add([A, B], function (a, b) {
+  .add([A, B], (a: A, b: B) => {
     console.log("用 A + B 调用");
   });
 
@@ -126,10 +112,10 @@ fn(new B(), new A());
 
 不定类型
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
-const fn = overload().add(["*", String], function (any, str) {
+const fn = overload(["*", String], (any: ESObject, str: string) => {
   console.log("用任意类型 + 字符串调用");
 });
 
@@ -143,16 +129,16 @@ fn(1, 1);
 
 多类型、允许参数为 null
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
-const fn = overload().add(
+const fn = overload(
   [
     [String, Number],
     [Boolean, null],
     ["*", null],
   ],
-  function (strOrNum, boolOrNull, anyOrNull) {
+  (strOrNum: string | number, boolOrNull: boolean | null, anyOrNull: ESObject | null) => {
     console.log(
       `字符串还是数字？${typeof strOrNum}\n布尔值还是Null？${
         boolOrNull === null ? "null" : typeof boolOrNull
@@ -174,10 +160,10 @@ fn(true, 1, null);
 
 不定参数
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
-const fn = overload().add([String, "..."], function (str, ...params) {
+const fn = overload([String, "..."], (str: string, ...params: ESObject[]) => {
   console.log(str, params);
 });
 
@@ -186,60 +172,42 @@ fn("abc", "bcd", 1, 2); // "abc", [ "bcd", 1, 2 ]
 
 
 // SyntaxError: Rest parameter must be last formal parameter
-const errFn = overload().add([String, "...", "*"], function (str, ...params, any) {});
+const errFn = overload([String, "...", "*"], (str: string, ...params: ESObject[]) => {});
 
 // SyntaxError: A "..." parameter must be the last parameter in a formal parameter list.
-const errFn1 = overload().add([String, "...", "*"], function (str, params, any) {});
+const errFn1 = overload([String, "...", "*"], (str: string, params: ESObject[], any: ESObject) => {});
 ```
 
 在类中使用
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
 class A {
   /**
-   * 类初始化时直接创建重载
-   * 避免使用，如果用非浏览器内置类型可能会出现未定义
+   * 多个重载的签名
    */
-  fn = overload().add([], function () {});
+  public test();
+  public test(str: string);
+  // TS 实现重载的函数
+  public test(...params: ESObject[]): ESObject { return this._test(...params); }
+  // 实际执行的重载函数
+  private _test = overload
+                 .add([], () => { console.log("空参数调用"); })
+                 .add([String], (str: string) => { console.log("用字符串调用"); });
 
-  /**
-   * 当前脚本解析时立刻创建重载
-   * 避免使用，如果用非浏览器内置类型极大概率会出现未定义
-   */
-  static staticFn = overload().add([], function () {});
-
-  /**
-   * 在执行时才创建重载并替换原函数，避免多次重建
-   * 这种用法可以在在创建重载前后做一些事情
-   * 且不会出现 import 外部类/对象未定义的情况
-   */
-  fn1(...params) {
-    A.prototype.fn1 = overload().add([], function () {});
-
-    return A.prototype.fn1.apply(this, params);
-  }
-
-  /**
-   * 静态函数定义，作用同上
-   */
-  static staticFn1(...params) {
-    A.staticFn1 = overload().add([], function () {});
-
-    return A.staticFn1.apply(this, params);
-  }
+  // 静态重载用法同上
 }
 ```
 
 自动调用类型转换函数
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
 class A {}
 class B {}
-const fn = overload([A], function (a) {});
+const fn = overload([A], (a: A) => {});
 /**
  * 在正常情况下，应当抛出：
  * Argument 1: Cannot convert from "B" to "A".
@@ -247,35 +215,31 @@ const fn = overload([A], function (a) {});
 fn(new B());
 ```
 
-```javascript
+```typescript
 import overload from "@jyostudio/overload";
 
 class A {
-  constructor(bbb) {
+  bbb: number;
+  constructor(bbb: number) {
     this.bbb = bbb;
   }
 
   // 定义一个静态的类型转换函数
-  static ["⇄"](...params) {
-    // 指定类型 B 的对象为入参
-    A["⇄"] = overload([B], function (b) {
-      /**
-       * 返回 A 的实例对象
-       * 注意，返回其他类型都将继续触发错误：
-       * Argument 1: Cannot convert from "B" to "A".
-       */
-      return new A(b.aaa);
-    });
-
-    return A["⇄"].apply(this, params);
-  }
+  static ["⇄"] = overload([B], (b: B) => {
+    /**
+     * 返回 A 的实例对象
+     * 注意，返回其他类型都将继续触发错误：
+     * Argument 1: Cannot convert from "B" to "A".
+     */
+    return new A(b.aaa);
+  });
 }
 
 class B {
   aaa = 123;
 }
 
-const fn = overload([A], function (a) {
+const fn = overload([A], (a: A) => {
   console.dir(a);
   console.dir(a.bbb);
 });
@@ -288,105 +252,11 @@ const fn = overload([A], function (a) {
 fn(new B());
 ```
 
-JSON Schema 支持（使用 ajv）
-
-```javascript
-import overload from "@jyostudio/overload";
-import JSONSchema from "@jyostudio/overload/dist/jsonSchema.js";
-
-const schema = new JSONSchema({
-  type: "object",
-  properties: {
-    foo: { type: "integer" },
-    bar: { type: "string" },
-  },
-  required: ["foo"],
-  additionalProperties: false,
-});
-
-const fn = overload()
-  .add([schema], function (obj) {
-    console.log("验证通过了！");
-  });
-  /*
-  // 如果增加了这段代码，则不会报错而是走到此分支逻辑
-  .add([Object], function (obj) {
-    console.log("Schema 没验证成功，但可以继续走到 Object 分支来。");
-  });
-  */
-
-// 验证通过了！
-fn({
-  foo: 1,
-  bar: "abc",
-});
-
-/**
-Uncaught Error: 方法 (匿名) 调用错误
-参数1：预期 JSONSchema 但得到 Object。
-附加信息：
-尝试方案1 - JSON Schema 校验错误：
-[
-  {
-    "instancePath": "/foo",
-    "schemaPath": "#/properties/foo/type",
-    "keyword": "type",
-    "params": {
-      "type": "integer"
-    },
-    "message": "应当是 integer 类型"
-  },
-  {
-    "instancePath": "/bar",
-    "schemaPath": "#/properties/bar/type",
-    "keyword": "type",
-    "params": {
-      "type": "string"
-    },
-    "message": "应当是 string 类型"
-  }
-] 
-*/
-fn({
-  foo: "abcdef",
-  bar: true,
-});
-```
-
-集合类型唯一  
-详情请看[这里](https://www.npmjs.com/package/@jyostudio/list)
-
 ## 许可证
-
-### 本仓库
 
 MIT License
 
 Copyright (c) 2024 nivk
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-### ajv
-
-The MIT License (MIT)
-
-Copyright (c) 2015-2021 Evgeny Poberezkin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

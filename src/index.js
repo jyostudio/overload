@@ -32,24 +32,21 @@ function matchType(param, type) {
     return false;
   }
 
-  switch (typeof param) {
-    case "function":
-    case "object":
-      break;
-    case "string": param = String; break;
-    case "number": param = Number; break;
-    case "boolean": param = Boolean; break;
-    case "symbol": param = Symbol; break;
-    case "bigint": param = BigInt; break;
-    default: param = Object(param); break;
-  }
+  const typeOfParam = typeof param;
 
-  if (param === type || param instanceof type) {
+  if (typeOfParam === "number" && type === Number) return true;
+  if (typeOfParam === "string" && type === String) return true;
+  if (typeOfParam === "boolean" && type === Boolean) return true;
+  if (typeOfParam === "symbol" && type === Symbol) return true;
+  if (typeOfParam === "bigint" && type === BigInt) return true;
+  if (typeOfParam === "undefined" && type === undefined) return true;
+  if (type === Object) return typeOfParam === "object";
+  if ((typeOfParam === "function" || typeOfParam === "object") && param instanceof type) {
+    if (param?.[INNER_TYPE_SON] && type?.[INNER_TYPE_FATHER]) {
+      return param[INNER_TYPE_SON] === type[INNER_TYPE_FATHER];
+    }
+
     return true;
-  }
-
-  if (param?.[INNER_TYPE_SON]) {
-    return param[INNER_TYPE_SON] === type?.[INNER_TYPE_FATHER];
   }
 
   return false;
@@ -120,35 +117,42 @@ function throwStackInfo(err, types, args) {
     }
   });
 
-  const matchingTypes = types.find(v => v.length === args.length);
+  const matchingTypes = types.filter(v => {
+    if (v.length > 0 && v[v.length - 1] === REST_STR) {
+      return args.length >= v.length - 1;
+    }
+    return v.length === args.length;
+  });
 
-  if (!matchingTypes) {
+  if (!matchingTypes.length) {
     errorMessage += `方法 ${errorMethodName} 不存在 ${args.length} 个参数的重载。`;
     errorMessage += formattedStack;
     throw new Error(errorMessage);
   }
 
   let hasError = false;
-  matchingTypes.forEach((expectedType, i) => {
-    if (!matchType(args[i], expectedType)) {
-      const expectedTypeNames = Array.isArray(expectedType)
-        ? expectedType.map(getTypeName).join("、")
-        : getTypeName(expectedType);
+  matchingTypes.forEach((matchingType) => {
+    matchingType.forEach((expectedType, i) => {
+      if (!matchType(args[i], expectedType)) {
+        const expectedTypeNames = Array.isArray(expectedType)
+          ? expectedType.map(getTypeName).join("、")
+          : getTypeName(expectedType);
 
-      errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
+        errorMessage += `${hasError ? "\n" : ""}参数${i + 1}：预期 ${expectedTypeNames} 但得到 ${getTypeName(args[i])}。`;
 
-      if (Array.isArray(expectedType)) {
-        expectedType.forEach((type, index) => {
-          if (typeof type?.[INNER_THROW_FN] === "function") {
-            errorMessage += `${index === 0 ? "\n附加信息：\n" : ""}尝试方案${i + 1} - ${type[INNER_THROW_FN]?.(args[i])}`;
-          }
-        });
-      } else if (typeof expectedType?.[INNER_THROW_FN] === "function") {
-        errorMessage += `\n附加信息：\n尝试方案${i + 1} - ${expectedType[INNER_THROW_FN]?.(args[i])}`;
+        if (Array.isArray(expectedType)) {
+          expectedType.forEach((type, index) => {
+            if (typeof type?.[INNER_THROW_FN] === "function") {
+              errorMessage += `${index === 0 ? "\n附加信息：\n" : ""}尝试方案${i + 1} - ${type[INNER_THROW_FN]?.(args[i])}`;
+            }
+          });
+        } else if (typeof expectedType?.[INNER_THROW_FN] === "function") {
+          errorMessage += `\n附加信息：\n尝试方案${i + 1} - ${expectedType[INNER_THROW_FN]?.(args[i])}`;
+        }
+
+        hasError = true;
       }
-
-      hasError = true;
-    }
+    });
   });
 
   if (hasError) {
@@ -186,12 +190,12 @@ function createOverload() {
    * @param {...any} params - 参数列表
    * @returns {any} 返回值
    */
-  function overload(...params) {
-    if (!TYPES.length) {
-      return runAny.apply(this, params);
-    }
+  function overload() {
+    const paramsLength = arguments.length;
 
-    const paramsLength = params.length;
+    if (!TYPES.length) {
+      return runAny.apply(this, arguments);
+    }
 
     loop: for (let i = 0; i < TYPES.length; i++) {
       const types = TYPES[i];
@@ -203,24 +207,73 @@ function createOverload() {
         continue;
       }
 
+      if (options.rest && paramsLength < typesLength - 1) {
+        continue;
+      }
+
+      let args = arguments;
+      let hasConverted = false;
+
       for (let j = 0; j < paramsLength; j++) {
         const type = types[j] || types[typesLength - 1];
-        if (!matchType(params[j], type)) {
-          try {
-            const convert = type?.[TYPE_CONVERT_STR]?.(params[j]);
+
+        // REST_STR 总是匹配，直接跳过
+        if (type === REST_STR) continue;
+
+        const param = args[j];
+
+        // ANY_STR 匹配非 null
+        if (type === ANY_STR && param !== null) continue;
+
+        const typeOfParam = typeof param;
+
+        // 内联基础类型检查 (Fast Path)
+        if (typeOfParam === "number" && type === Number) continue;
+        if (typeOfParam === "string" && type === String) continue;
+        if (typeOfParam === "boolean" && type === Boolean) continue;
+        if (typeOfParam === "function" && type === Function) continue;
+        // Object 匹配 object 类型 (包含 null)
+        if (typeOfParam === "object" && type === Object) continue;
+
+        if (!matchType(param, type)) {
+          if (type && typeof type[TYPE_CONVERT_STR] === "function") {
+            const convert = type[TYPE_CONVERT_STR](param);
             if (matchType(convert, type)) {
-              params[j] = convert;
+              if (!hasConverted) {
+                args = new Array(paramsLength);
+                for (let k = 0; k < paramsLength; k++) {
+                  args[k] = arguments[k];
+                }
+                hasConverted = true;
+              }
+              args[j] = convert;
               continue;
             }
-          } catch { }
+          }
           continue loop;
         }
       }
 
-      return FNS[i].apply(this, params);
+      if (!hasConverted) {
+        switch (paramsLength) {
+          case 0: return FNS[i].call(this);
+          case 1: return FNS[i].call(this, args[0]);
+          case 2: return FNS[i].call(this, args[0], args[1]);
+          case 3: return FNS[i].call(this, args[0], args[1], args[2]);
+          case 4: return FNS[i].call(this, args[0], args[1], args[2], args[3]);
+          case 5: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4]);
+          case 6: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5]);
+          case 7: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+          case 8: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
+          case 9: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+          case 10: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]);
+        }
+      }
+
+      return FNS[i].apply(this, args);
     }
 
-    return runAny.apply(this, params);
+    return runAny.apply(this, arguments);
   }
 
   /**

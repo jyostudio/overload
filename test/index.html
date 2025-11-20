@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overload Library Tests</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; background-color: #f5f5f5; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+        h2 { margin-top: 30px; color: #444; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .test-group { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .test-case { margin: 5px 0; padding: 8px; border-left: 4px solid #ddd; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+        .test-case.pass { border-left-color: #4caf50; background: #e8f5e9; }
+        .test-case.fail { border-left-color: #f44336; background: #ffebee; }
+        .test-case.perf { border-left-color: #2196f3; background: #e3f2fd; }
+        .test-name { font-weight: bold; }
+        .test-result { font-family: monospace; }
+        .summary { font-size: 1.2em; margin-bottom: 20px; padding: 10px; background: #e0e0e0; border-radius: 4px; }
+        .summary span { font-weight: bold; margin-right: 15px; }
+        .pass-count { color: #2e7d32; }
+        .fail-count { color: #c62828; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #2196f3; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #1976d2; }
+        #console-output { background: #222; color: #eee; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; height: 300px; overflow-y: auto; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Overload Library Test Suite</h1>
+    
+    <div class="summary">
+        总计: <span id="total-count">0</span>
+        通过: <span id="pass-count" class="pass-count">0</span>
+        失败: <span id="fail-count" class="fail-count">0</span>
+        <button onclick="location.reload()">重新运行测试</button>
+    </div>
+
+    <div id="test-container"></div>
+
+    <h2>控制台输出</h2>
+    <div id="console-output"></div>
+
+    <script type="module" src="./test.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /**
- * 检查设置器参数的类型。
+ * 装饰器：检查设置器参数的类型。
  * @param type 设置器参数的类型检查器。
  * @template This 设置器的 this 类型。
  * @template Args 设置器参数的类型。

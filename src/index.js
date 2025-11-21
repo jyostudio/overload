@@ -311,29 +311,6 @@ function createOverload() {
       throw new Error("已存在此签名的重载。");
     });
 
-    types.forEach(type => {
-      const isArray = Array.isArray(type);
-      if (typeof type !== "function" && !isArray && type !== ANY_STR && type !== REST_STR && type !== null && type !== undefined) {
-        throw new TypeError(`期望类型为 Class、Array、${ANY_STR} 或末尾参数也可以是 ${REST_STR}。`);
-      }
-
-      if (isArray) {
-        for (let i = 0; i < type.length; i++) {
-          const subType = type[i];
-          const typeofStr = typeof subType;
-          if (
-            typeofStr !== "function" &&
-            !(typeofStr === "object" && typeof subType?.constructor === "function") &&
-            subType !== null &&
-            subType !== undefined &&
-            subType !== ANY_STR
-          ) {
-            throw new TypeError(`类型必须为 Class、null 或 ${ANY_STR}。`);
-          }
-        }
-      }
-    });
-
     TYPES.push(types);
     FNS.push(fn);
     OPTIONS.push({

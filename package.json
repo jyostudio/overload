@@ -1,6 +1,6 @@
 {
   "name": "@jyostudio/overload",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "method overload",
   "source": "src/index.js",
   "main": "src/index.js",

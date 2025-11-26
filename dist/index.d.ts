@@ -1,41 +1,74 @@
 /**
- * 执行重载函数
- * @param {Array<any>} [params] - 参数列表
- * @returns {any} 返回值
+ * 映射构造函数/类型到实际参数类型
  */
-function overload(...params): any;
+type MapRuntimeType<T> =
+  T extends NumberConstructor ? number :
+  T extends StringConstructor ? string :
+  T extends BooleanConstructor ? boolean :
+  T extends SymbolConstructor ? symbol :
+  T extends BigIntConstructor ? bigint :
+  T extends ArrayConstructor ? any[] :
+  T extends FunctionConstructor ? Function :
+  T extends ObjectConstructor ? object :
+  T extends null ? null :
+  T extends undefined ? undefined :
+  T extends "*" ? any :
+  T extends "..." ? any[] :
+  T extends readonly (infer U)[] ? MapRuntimeType<U> :
+  T extends new (...args: any[]) => infer R ? R :
+  T extends object ? any :
+  T;
 
 /**
- * 添加函数重载
- * @param {Array} types - 参数类型列表
- * @param {Function} fn - 要调用的函数
- * @returns {Function} 执行重载函数
- * @throws {TypeError} 参数类型错误
- * @throws {SyntaxError} 解析错误
- * @throws {Error} 运行时错误
+ * 映射参数类型数组到参数元组
  */
-overload.add = function (types: any[], fn: Function): typeof overload {
-  return overload;
-};
+type MapArgs<T extends readonly any[]> =
+  T extends readonly [infer Head, ...infer Tail]
+    ? Head extends "..."
+      ? any[]
+      : [MapRuntimeType<Head>, ...MapArgs<Tail>]
+    : [];
 
 /**
- * 设置兜底函数
- * @param {Function} fn - 兜底函数
- * @returns {Function} 执行重载函数
- * @throws {TypeError} 参数类型错误
- * @throws {Error} 运行时错误
+ * 将元组类型转换为交叉类型
  */
-overload.any = function (fn: Function): typeof overload {
-  return overload;
-};
+type TupleToIntersection<T extends any[]> = 
+  T extends [infer Head, ...infer Tail]
+    ? Head & TupleToIntersection<Tail>
+    : unknown;
 
 /**
- * 返回一个重载函数
- * @param {Array<any>} [defaultTypes] - 默认参数类型列表
- * @param {Function} [defaultFn] - 默认要调用的函数
- * @returns {Function} 执行重载函数
+ * 重载构建器
+ * Sigs 为当前累积的签名数组
  */
-export default function (
-  defaultTypes?: Array<any>,
-  defaultFn?: Function
-): typeof overload;
+type OverloadBuilder<Sigs extends any[] = []> =
+  TupleToIntersection<Sigs> & {
+    /**
+     * 添加一个重载签名
+     * @param types 参数类型定义数组
+     * @param fn 实现函数
+     */
+    add<const T extends readonly any[], R>(
+      types: readonly [...T],
+      fn: (...args: MapArgs<T>) => R
+    ): OverloadBuilder<[(...args: MapArgs<T>) => R, ...Sigs]>;
+
+    /**
+     * 添加兜底函数
+     * @param fn 兜底函数
+     */
+    any<R>(fn: (...args: any[]) => R): OverloadBuilder<[...Sigs, (...args: any[]) => R]>;
+  };
+
+/**
+ * 创建一个重载构建器（无默认签名）
+ */
+export default function overload(): OverloadBuilder<[]>;
+
+/**
+ * 创建一个带默认签名的重载构建器
+ */
+export default function overload<T extends readonly any[], R>(
+  defaultTypes: readonly [...T],
+  defaultFn: (...args: MapArgs<T>) => R
+): OverloadBuilder<[(...args: MapArgs<T>) => R]>;

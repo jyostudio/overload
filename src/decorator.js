@@ -53,6 +53,7 @@ export function lazyCheckSetterType(lambdaType) {
      */
     return function (target, context) {
         let checker;
+
         /**
          * 返回一个新的函数，该函数在调用时会执行类型检查。
          * @returns 返回设置器的返回值。
@@ -60,14 +61,17 @@ export function lazyCheckSetterType(lambdaType) {
         return function (...args) {
             if (!checker) {
                 const type = lambdaType();
+
                 /**
                  * 如果类型检查器不存在，则创建一个新的类型检查器并存储在 WeakMap 中。
                  */
                 if (!setterTypeCheckers.has(type)) {
                     setterTypeCheckers.set(type, overload([type], function () { }));
                 }
+
                 checker = setterTypeCheckers.get(type);
             }
+            
             checker?.(...args);
             const result = target.call(this, ...args);
             return result;

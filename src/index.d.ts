@@ -9,7 +9,7 @@ type MapRuntimeType<T> =
   T extends BigIntConstructor ? bigint :
   T extends ArrayConstructor ? any[] :
   T extends FunctionConstructor ? Function :
-  T extends ObjectConstructor ? object :
+  T extends ObjectConstructor ? any :
   T extends null ? null :
   T extends undefined ? undefined :
   T extends "*" ? any :
@@ -21,21 +21,25 @@ type MapRuntimeType<T> =
 
 /**
  * 映射参数类型数组到参数元组
+ * "..." 表示忽略当前及后续所有参数校验，接受任意参数
+ * "*" 表示当前参数为 any 类型
  */
 type MapArgs<T extends readonly any[]> =
   T extends readonly [infer Head, ...infer Tail]
-    ? Head extends "..."
-      ? any[]
-      : [MapRuntimeType<Head>, ...MapArgs<Tail>]
-    : [];
+  ? Head extends "..."
+  ? [...any[]] // 剩余参数，接受任意数量任意类型的参数
+  : Head extends "*"
+  ? [any, ...MapArgs<Tail>] // 当前参数为 any，继续处理后续参数
+  : [MapRuntimeType<Head>, ...MapArgs<Tail>]
+  : [];
 
 /**
  * 将元组类型转换为交叉类型
  */
-type TupleToIntersection<T extends any[]> = 
+type TupleToIntersection<T extends any[]> =
   T extends [infer Head, ...infer Tail]
-    ? Head & TupleToIntersection<Tail>
-    : unknown;
+  ? Head & TupleToIntersection<Tail>
+  : unknown;
 
 /**
  * 重载构建器

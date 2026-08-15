@@ -4,12 +4,13 @@ import { ANY_STR, REST_STR, TYPE_CONVERT_STR, INNER_TYPE_FATHER, INNER_TYPE_SON,
  * 匹配类型
  * @param {any} param - 传入的参数
  * @param {any} type - 期望的类型
+ * @param {String} [precomputedTypeOfParam] - 已计算好的 typeof param（热路径优化）
  * @returns {Boolean} 是否匹配
  */
-function matchType(param, type) {
+function matchType(param, type, precomputedTypeOfParam) {
   if (Array.isArray(type)) {
     for (let i = 0; i < type.length; i++) {
-      if (matchType(param, type[i])) {
+      if (matchType(param, type[i], precomputedTypeOfParam)) {
         return true;
       }
     }
@@ -22,9 +23,10 @@ function matchType(param, type) {
 
   if (typeof type !== "function") {
     if (
-      type === ANY_STR && param !== null ||
+      (type === ANY_STR && param !== null) ||
       type === REST_STR ||
       (type === null && param === null) ||
+      (type === undefined && param === undefined) ||
       type === typeof param
     ) {
       return true;
@@ -32,14 +34,13 @@ function matchType(param, type) {
     return false;
   }
 
-  const typeOfParam = typeof param;
+  const typeOfParam = precomputedTypeOfParam === undefined ? typeof param : precomputedTypeOfParam;
 
   if (typeOfParam === "number" && type === Number) return true;
   if (typeOfParam === "string" && type === String) return true;
   if (typeOfParam === "boolean" && type === Boolean) return true;
   if (typeOfParam === "symbol" && type === Symbol) return true;
   if (typeOfParam === "bigint" && type === BigInt) return true;
-  if (typeOfParam === "undefined" && type === undefined) return true;
   if (type === Object) return typeOfParam === "object";
   if ((typeOfParam === "function" || typeOfParam === "object") && param instanceof type) {
     if (param?.[INNER_TYPE_SON] && type?.[INNER_TYPE_FATHER]) {
@@ -69,7 +70,7 @@ function getTypeName(param) {
   const paramType = typeof param;
 
   if (!["function", "object"].includes(paramType)) {
-    return paramType[0].toUpperCase() + paramType.slice(1);;
+    return paramType[0].toUpperCase() + paramType.slice(1);
   }
 
   let className = (param?.name || param?.constructor?.name || "(未知)").split(" ").pop();
@@ -162,6 +163,164 @@ function throwStackInfo(err, types, args) {
   }
 }
 
+/** null 参数在缓存 key 中的占位（区别于原型为 null 的对象） */
+const NULL_KEY = {};
+
+/**
+ * 判断一个类型是否只依赖 typeof / instanceof（纯匹配器）。
+ * @param {any} type - 期望的类型
+ * @returns {Boolean} 是否为纯匹配器
+ */
+function isPureType(type) {
+  if (Array.isArray(type)) {
+    for (let i = 0; i < type.length; i++) {
+      if (!isPureType(type[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (type === null || type === undefined) {
+    return true;
+  }
+
+  if (typeof type === "string") {
+    return true;
+  }
+
+  if (typeof type === "function") {
+    return !type[INNER_TYPE_FN] &&
+      typeof type[TYPE_CONVERT_STR] !== "function" &&
+      !type[INNER_TYPE_FATHER] &&
+      type[Symbol.hasInstance] === Function.prototype[Symbol.hasInstance];
+  }
+
+  return false;
+}
+
+/**
+ * 构造缓存 key：第 0 位是参数个数，之后每位是参数的 typeof；
+ * 对象/函数参数使用其原型链锚点（Object.getPrototypeOf）作为 key。
+ * 相同 key 保证对所有纯匹配器的判定结果完全一致。
+ * @param {IArguments | Array} args - 参数列表
+ * @returns {Array} 缓存 key
+ */
+function buildMemoKey(args) {
+  const length = args.length;
+  const key = new Array(length + 1);
+  key[0] = length;
+
+  for (let i = 0; i < length; i++) {
+    const param = args[i];
+
+    if (param === null) {
+      key[i + 1] = NULL_KEY;
+      continue;
+    }
+
+    const typeOfParam = typeof param;
+    key[i + 1] = typeOfParam === "object" || typeOfParam === "function"
+      ? Object.getPrototypeOf(param)
+      : typeOfParam;
+  }
+
+  return key;
+}
+
+/**
+ * 比较两个缓存 key 是否一致。
+ * @param {Array} keyA - 缓存 key
+ * @param {Array} keyB - 缓存 key
+ * @returns {Boolean} 是否一致
+ */
+function isSameMemoKey(keyA, keyB) {
+  if (keyA[0] !== keyB[0]) {
+    return false;
+  }
+
+  for (let i = 1; i < keyA.length; i++) {
+    if (keyA[i] !== keyB[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * 检查签名 index 是否匹配 args。
+ * @param {Array} types - 全部签名的类型列表
+ * @param {Array} options - 全部签名的选项列表
+ * @param {Number} index - 签名在 types 中的下标
+ * @param {IArguments | Array} args - 参数列表
+ * @returns {IArguments | Array | null} 匹配时返回最终参数（发生类型转换时为新建数组），否则返回 null
+ */
+function matchSignature(types, options, index, args) {
+  const signatureTypes = types[index];
+  const signatureOptions = options[index];
+  const paramsLength = args.length;
+  const typesLength = signatureTypes.length;
+  const isRest = signatureOptions.rest;
+
+  if ((signatureOptions.length !== paramsLength && !isRest) ||
+    (paramsLength === 0 && typesLength && signatureTypes[0] !== REST_STR) ||
+    (isRest && paramsLength < typesLength - 1)) {
+    return null;
+  }
+
+  let convertedArgs = null;
+
+  for (let j = 0; j < paramsLength; j++) {
+    // 非 rest 签名直接取对应位置；rest 签名超出声明部分的参数使用最后一个类型
+    const type = !isRest || j < typesLength - 1 ? signatureTypes[j] : signatureTypes[typesLength - 1];
+
+    // REST_STR 总是匹配，直接跳过
+    if (type === REST_STR) continue;
+
+    const param = args[j];
+
+    // ANY_STR 匹配非 null
+    if (type === ANY_STR && param !== null) continue;
+
+    const typeOfParam = typeof param;
+
+    // 内联基础类型检查 (Fast Path，按出现频率排序)
+    if (typeOfParam === "number" && type === Number) continue;
+    if (typeOfParam === "string" && type === String) continue;
+    if (typeOfParam === "boolean" && type === Boolean) continue;
+    if (typeOfParam === "function" && type === Function) continue;
+    // Object 匹配 object 类型 (包含 null)
+    if (typeOfParam === "object" && type === Object) continue;
+    if (type === null && param === null) continue;
+    if (typeOfParam === "symbol" && type === Symbol) continue;
+    if (typeOfParam === "bigint" && type === BigInt) continue;
+    if (typeOfParam === "undefined" && type === undefined) continue;
+
+    if (!matchType(param, type, typeOfParam)) {
+      if (type && typeof type[TYPE_CONVERT_STR] === "function") {
+        const converted = type[TYPE_CONVERT_STR](param);
+
+        if (matchType(converted, type)) {
+          if (!convertedArgs) {
+            convertedArgs = new Array(paramsLength);
+            for (let k = 0; k < paramsLength; k++) {
+              convertedArgs[k] = args[k];
+            }
+          }
+
+          convertedArgs[j] = converted;
+          continue;
+        }
+      }
+
+      return null;
+    }
+  }
+
+  return convertedArgs || args;
+}
+
 /**
  * 返回一个重载函数
  * @returns {Function} 重载函数
@@ -171,6 +330,21 @@ function createOverload() {
   const FNS = [];
   const OPTIONS = [];
   let anyFn = null;
+
+  /**
+   * 是否存在依赖"参数值"而非"类型/原型链"的匹配器。
+   * 例如 JSONSchema、自定义 INNER_TYPE_FN、类型转换（⇄）、INNER_TYPE_FATHER、Symbol.hasInstance。
+   * 存在时禁用"最近命中签名"缓存，以保证与逐签名扫描完全一致的匹配结果。
+   */
+  let hasImpureMatcher = false;
+
+  /**
+   * 最近命中的签名缓存（MRU 顺序，最多 MEMO_SIZE 条）。
+   * 每条为 { key, index }：key 由参数构造，index 为签名在 TYPES 中的下标。
+   * 相同 key 保证对所有纯匹配器的判定结果完全一致，因此命中即可直接分派。
+   */
+  const MEMO_SIZE = 4;
+  const memoList = [];
 
   /**
    * 调用兜底函数
@@ -191,86 +365,61 @@ function createOverload() {
    * @returns {any} 返回值
    */
   function overload() {
-    const paramsLength = arguments.length;
-
     if (!TYPES.length) {
       return runAny.apply(this, arguments);
     }
 
-    loop: for (let i = 0; i < TYPES.length; i++) {
-      const types = TYPES[i];
-      const options = OPTIONS[i];
-      const typesLength = types.length;
+    let probedKey = null;
 
-      if ((options.length !== paramsLength && !options.rest) ||
-        (paramsLength === 0 && typesLength && types[0] !== REST_STR)) {
-        continue;
+    // 优先探测最近命中的签名（仅当所有匹配器均为纯类型时启用）
+    if (!hasImpureMatcher && memoList.length) {
+      probedKey = buildMemoKey(arguments);
+
+      for (let m = 0; m < memoList.length; m++) {
+        const entry = memoList[m];
+
+        if (!isSameMemoKey(probedKey, entry.key)) {
+          continue;
+        }
+
+        const args = matchSignature(TYPES, OPTIONS, entry.index, arguments);
+
+        if (args !== null) {
+          // 命中后移到最前（MRU）
+          if (m !== 0) {
+            memoList.splice(m, 1);
+            memoList.unshift(entry);
+          }
+
+          return FNS[entry.index].apply(this, args);
+        }
       }
+    }
 
-      if (options.rest && paramsLength < typesLength - 1) {
-        continue;
-      }
+    for (let i = 0; i < TYPES.length; i++) {
+      const args = matchSignature(TYPES, OPTIONS, i, arguments);
 
-      let args = arguments;
-      let hasConverted = false;
+      if (args !== null) {
+        // 只有非首签名才值得缓存（首签名本身就是扫描第一步）
+        if (!hasImpureMatcher && i !== 0) {
+          const key = probedKey || buildMemoKey(arguments);
 
-      for (let j = 0; j < paramsLength; j++) {
-        const type = types[j] || types[typesLength - 1];
-
-        // REST_STR 总是匹配，直接跳过
-        if (type === REST_STR) continue;
-
-        const param = args[j];
-
-        // ANY_STR 匹配非 null
-        if (type === ANY_STR && param !== null) continue;
-
-        const typeOfParam = typeof param;
-
-        // 内联基础类型检查 (Fast Path)
-        if (typeOfParam === "number" && type === Number) continue;
-        if (typeOfParam === "string" && type === String) continue;
-        if (typeOfParam === "boolean" && type === Boolean) continue;
-        if (typeOfParam === "function" && type === Function) continue;
-        // Object 匹配 object 类型 (包含 null)
-        if (typeOfParam === "object" && type === Object) continue;
-
-        if (!matchType(param, type)) {
-          if (type && typeof type[TYPE_CONVERT_STR] === "function") {
-            const convert = type[TYPE_CONVERT_STR](param);
-            if (matchType(convert, type)) {
-              if (!hasConverted) {
-                args = new Array(paramsLength);
-                for (let k = 0; k < paramsLength; k++) {
-                  args[k] = arguments[k];
-                }
-                hasConverted = true;
-              }
-              args[j] = convert;
-              continue;
+          // 去重后插入到最前（MRU），并裁剪到 MEMO_SIZE
+          for (let m = memoList.length - 1; m >= 0; m--) {
+            if (isSameMemoKey(memoList[m].key, key)) {
+              memoList.splice(m, 1);
             }
           }
-          continue loop;
-        }
-      }
 
-      if (!hasConverted) {
-        switch (paramsLength) {
-          case 0: return FNS[i].call(this);
-          case 1: return FNS[i].call(this, args[0]);
-          case 2: return FNS[i].call(this, args[0], args[1]);
-          case 3: return FNS[i].call(this, args[0], args[1], args[2]);
-          case 4: return FNS[i].call(this, args[0], args[1], args[2], args[3]);
-          case 5: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4]);
-          case 6: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5]);
-          case 7: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
-          case 8: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
-          case 9: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
-          case 10: return FNS[i].call(this, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]);
-        }
-      }
+          memoList.unshift({ key, index: i });
 
-      return FNS[i].apply(this, args);
+          if (memoList.length > MEMO_SIZE) {
+            memoList.pop();
+          }
+        }
+
+        return FNS[i].apply(this, args);
+      }
     }
 
     return runAny.apply(this, arguments);
@@ -297,6 +446,10 @@ function createOverload() {
       if (types[i] === REST_STR && i !== types.length - 1) {
         throw new SyntaxError(`${REST_STR} 必须是最后一个参数。`);
       }
+    }
+
+    if (!isPureType(types)) {
+      hasImpureMatcher = true;
     }
 
     TYPES.forEach((key) => {
